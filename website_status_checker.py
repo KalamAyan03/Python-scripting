@@ -22,8 +22,8 @@ while True:
                 print("--------------------------------------------------")
                 print("Status code we recieved is not 200 but it is :", statuscode)
                 print("----------------------------------------------------")
-                __email = "happysingh03030303@gmail.com"
-                __app_password = "hgsc vkhf bwhv grqj"
+                __email = "write your email here"
+                __app_password = "write app password of your email it will look like -> "asdf iksd erwe aeew""
 
                 msg = EmailMessage()
                 msg.set_content(f"Alert: Website is down. Status code we received is: {statuscode}")
