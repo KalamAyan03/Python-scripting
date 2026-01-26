@@ -28,7 +28,7 @@ while True:
                 msg = EmailMessage()
                 msg.set_content(f"Alert: Website is down. Status code we received is: {statuscode}")
                 msg["Subject"] = "Website Alert"
-                msg["From"] = "happysingh03030303@gmail.com"
+                msg["From"] = "__email"
                 msg["To"] = "kalamayan842@gmail.com"
 
                 server = smtplib.SMTP_SSL("smtp.gmail.com", 465)  #This connects your script to Gmail’s email server.
