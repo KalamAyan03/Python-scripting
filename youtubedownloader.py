@@ -17,7 +17,8 @@ ydl_options = {
 
     # "format": "best" ka matlab hai ki sabse best available quality ka video download karo
     # agar highest resolution available hogi to wahi select hogi
-    "format": "best",
+    "format": "bestvideo+bestaudio/best",
+    # "format":"best" # this will download decent video quality
 
     # "outtmpl" ka matlab hai output file ka naam kaise banega
     # %(title)s ka matlab hai video ka title use karo
