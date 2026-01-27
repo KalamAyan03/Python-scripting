@@ -2,7 +2,7 @@ import smtplib  # Email bhejne ke liye standard library (Simple Mail Transfer Pr
 from email.message import EmailMessage  # Modern email format banane ke liye class
 import os  # System folders aur environment variables access karne ke liye
 from dotenv import load_dotenv  # .env file se secret passwords read karne ke liye
-import time  # Script ko sulaane (sleep) aur time dikhane ke liye
+import time  # Script ko sulaane (sleep) aur exittime dikhane ke liye
 import yfinance as yf  # Yahoo Finance se live stock data khichne ke liye
 from datetime import datetime  # Aaj ka din aur exact time pata karne ke liye
 
@@ -24,16 +24,16 @@ def logicForEmailSend(netweb, bhel, kaynes):
     msg["To"] = "kalamayan842@gmail.com" # Jisko email jayega
 
     try:
-        # Gmail ke secure server (SSL) se connect karna port 465 par
-        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
-            server.login(__email, __app_password) # Login process
+        # Gmail ka server sa encrypted connection ka liya hum use karte SSL connection, SSL connection 465 port ka liye dedicated hai, or pahala handshake hota then encruytion hoke jo bhi msg, mail, credential hai wo send hoga 
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server: # connection create karre yaha
+            server.login(__email, __app_password) # Login process sending to server
             server.send_message(msg) # Email ko final send karna
         print("✅ Alert Email bhej diya gaya hai!")
     except Exception as e:
         # Agar internet ya login mein galti ho toh crash na ho, bas error print kare
-        print(f"❌ Email bhejne mein galti: {e}")
+        print(f"❌ Email is not sent, some error happened {e}")
 
-# --- Logic: Check karna ki market khula hai ya nahi ---
+# --- Logic: Checks the today is weekday or weekend and also the exact time at weekdays---
 def get_market_status():
     """Check karta hai ki kya market abhi active hai (Monday-Friday aur 9:15-3:30)"""
     now = datetime.now() # Abhi ka exact time aur date
@@ -61,7 +61,7 @@ def monitor_market():
         try:
             # Hum "5d" (5 days) mangwa rahe hain taaki hamesha "Last Available Price" mile
             # Bhale hi aaj Sunday ho, ye pichle working day (Friday) ka data utha lega
-            tickers = {"BHEL": "BHEL.NS", "NETWEB": "NETWEB.NS", "KAYNES": "KAYNES.NS"}
+            tickers = {"BHEL": "BHEL.NS", "NETWEB": "NETWEB.NS", "KAYNES": "KAYNES.NS"} # stockname.NS is the name of stock in yfinance module from we get the price of stock
             current_prices = {}
 
             # Har stock ke liye loop chalana
