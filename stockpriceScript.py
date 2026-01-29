@@ -197,6 +197,8 @@ def monitor_market():
                 else:
                     logging.info("Market band hai, alerts paused. Next check in 1 hour")
                     time.sleep(3600)
+            break #remove this to run script in loop
+            
 
         except KeyboardInterrupt:
             # Jab user Ctrl + C dabata hai, yahan execution aata hai
@@ -213,6 +215,7 @@ def monitor_market():
             logging.error(f"Unexpected error aayi: {e}")
             time.sleep(60)
             # 1 minute wait karke dobara try kare
+            break #remove this to run script in loop
 
 # ================= SCRIPT ENTRY POINT =================
 
