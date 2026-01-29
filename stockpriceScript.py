@@ -1,114 +1,221 @@
-import smtplib  # Email bhejne ke liye standard library (Simple Mail Transfer Protocol)
-from email.message import EmailMessage  # Modern email format banane ke liye class
-import os  # System folders aur environment variables access karne ke liye
-from dotenv import load_dotenv  # .env file se secret passwords read karne ke liye
-import time  # Script ko sulaane (sleep) aur exittime dikhane ke liye
-import yfinance as yf  # Yahoo Finance se live stock data khichne ke liye
-from datetime import datetime  # Aaj ka din aur exact time pata karne ke liye
+# ================= REQUIRED MODULES IMPORT =================
 
-# 1. Environment variables load karein (.env file mein jo likha hai wo memory mein aa jayega)
+import smtplib
+# smtplib = Python ki standard library jo email bhejne ke kaam aati hai
+# Ye SMTP (Simple Mail Transfer Protocol) ka use karti hai
+
+from email.message import EmailMessage
+# EmailMessage = modern aur structured tareeka email ka content banane ke liye
+
+import os
+# os module = system environment variables (.env) se data read karne ke liye
+
+from dotenv import load_dotenv
+# load_dotenv = .env file ke secrets ko program ki memory mein load karta hai
+
+import time
+# time module = delay dene ke liye (sleep), taaki script bar-bar spam na kare
+
+import yfinance as yf
+# yfinance = Yahoo Finance se stock prices (live / recent) nikalne ke liye
+
+from datetime import datetime
+# datetime = current date aur time nikalne ke liye
+
+import logging
+# logging = print() ka professional replacement (file + terminal logging)
+
+# ================= LOGGING SETUP =================
+
+logging.basicConfig(
+    level=logging.INFO,
+    # level INFO ka matlab: INFO, WARNING, ERROR sab log honge
+
+    format="%(asctime)s - %(levelname)s - %(message)s",
+    # format batata hai ki har log line ka structure kaisa hoga
+
+    handlers=[
+        logging.FileHandler("stock_market_price_monitor.log"),
+        # FileHandler = saare logs is file mein save honge
+
+        logging.StreamHandler()
+        # StreamHandler = same logs terminal par bhi dikhayega
+    ]
+)
+
+# =================================================
+
 load_dotenv()
+# .env file load ho rahi hai taaki EMAIL aur PASSWORD mil sake
 
-# --- Logic: Stock price hit hone par email bhejna ---
+# ================= EMAIL ALERT LOGIC =================
+
 def logicForEmailSend(netweb, bhel, kaynes):
-    # .env se email aur app password nikal kar variables mein daalna (Security purpose)
-    __email = os.getenv('EMAIL_USER') 
-    __app_password = os.getenv('EMAIL_PASS') 
- 
-    # Naya email object create karna
+    # Ye function tab call hota hai jab koi stock apna target hit karta hai
+
+    __email = os.getenv('EMAIL_USER')
+    # EMAIL_USER environment variable se sender email read kar raha hai
+
+    __app_password = os.getenv('EMAIL_PASS')
+    # EMAIL_PASS (Gmail App Password) ko secure tareeke se read kar raha hai
+
     msg = EmailMessage()
-    # Email ki main body (message) set karna
-    msg.set_content(f"🚨 PORTFOLIO ALERT BHAI! \n\nNetweb: ₹{netweb:.2f}\nBHEL: ₹{bhel:.2f}\nKaynes: ₹{kaynes:.2f}\n\nTarget hit ho gaya hai, check kar lo!")
-    msg["Subject"] = "Stock Price Buy Alert!" # Email ka subject
-    msg["From"] = __email # Bhejne wale ka email
-    msg["To"] = "kalamayan842@gmail.com" # Jisko email jayega
+    # Email ka naya object create ho raha hai
+
+    msg.set_content(
+        f"🚨 PORTFOLIO ALERT BHAI!\n\n"
+        f"Netweb: ₹{netweb:.2f}\n"
+        f"BHEL: ₹{bhel:.2f}\n"
+        f"Kaynes: ₹{kaynes:.2f}\n\n"
+        f"Target hit ho gaya hai, check kar lo!"
+    )
+    # Email ka main message body set ho raha hai
+
+    msg["Subject"] = "Stock Price Buy Alert!"
+    # Email ka subject
+
+    msg["From"] = __email
+    # Sender ka email address
+
+    msg["To"] = "kalamayan842@gmail.com"
+    # Receiver ka email address
 
     try:
-        # Gmail ka server sa encrypted connection ka liya hum use karte SSL connection, SSL connection 465 port ka liye dedicated hai, or pahala handshake hota then encruytion hoke jo bhi msg, mail, credential hai wo send hoga 
-        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server: # connection create karre yaha
-            server.login(__email, __app_password) # Login process sending to server
-            server.send_message(msg) # Email ko final send karna
-        print("✅ Alert Email bhej diya gaya hai!")
+        # Gmail ke SMTP server ke saath secure SSL connection ban raha hai
+
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
+            server.login(__email, __app_password)
+            # Gmail account login ho raha hai
+
+            server.send_message(msg)
+            # Email send ho raha hai
+
+        logging.info("Alert email successfully bhej diya gaya hai")
+        # Email successfully bhejne ka log
+
     except Exception as e:
-        # Agar internet ya login mein galti ho toh crash na ho, bas error print kare
-        print(f"❌ Email is not sent, some error happened {e}")
+        logging.error(f"Email bhejne mein error aayi: {e}")
+        # Agar email fail ho jaaye toh error log
 
-# --- Logic: Checks the today is weekday or weekend and also the exact time at weekdays---
+# ================= MARKET STATUS CHECKER =================
+
 def get_market_status():
-    """Check karta hai ki kya market abhi active hai (Monday-Friday aur 9:15-3:30)"""
-    now = datetime.now() # Abhi ka exact time aur date
-    weekday = now.weekday() # Din pata karna (0 = Monday, 5 = Sat, 6 = Sun)
-    
-    # Check 1: Sirf Monday (0) se Friday (4) ke beech kaam kare
-    if weekday <= 4:
-        # Check 2: Indian Market hours (9:15 AM to 3:30 PM) ko decimal mein badalna
-        # 9:15 matlab 9.25 ghante aur 15:30 (3:30 PM) matlab 15.5 ghante
-        current_time = now.hour + now.minute/60
-        if 9.25 <= current_time <= 15.5:
-            return True # Market timing ke andar hai
-    return False # Market ya toh holiday/weekend hai ya band ho chuka hai
+    # Ye function check karta hai market abhi open hai ya nahi
 
-# --- Main Logic: Stocks ko monitor karna ---
+    now = datetime.now()
+    # Current date aur time nikal raha hai
+
+    weekday = now.weekday()
+    # Weekday number (0 = Monday, 6 = Sunday)
+
+    if weekday <= 4:
+        # Sirf Monday se Friday tak allow
+
+        current_time = now.hour + now.minute / 60
+        # Time ko decimal format mein convert kar raha hai
+
+        if 9.25 <= current_time <= 15.5:
+            # Indian stock market timing: 9:15 AM to 3:30 PM
+            return True
+
+    return False
+    # Weekend ya market band hone par False
+
+# ================= MAIN MARKET MONITOR =================
+
 def monitor_market():
-    # Aapke "Battle Lines" (Jab price inse niche jayega, tabhi alert aayega)
+    # Ye function poori script ka main engine hai
+
     bhel_target = 233.0
     netweb_target = 2850.0
     kaynes_target = 3100.0
+    # Ye buy targets define kar rahe hain
 
-    print("--- 🕵️ Master Market Monitor Started ---")
+    logging.info("🕵️ Master Market Monitor started")
+    # Script start hone ka log
 
-    while True: # Infinite loop: Script ko Oracle server par 24/7 chalta rakhega
+    while True:
+        # Infinite loop = script continuously chalegi
+
         try:
-            # Hum "5d" (5 days) mangwa rahe hain taaki hamesha "Last Available Price" mile
-            # Bhale hi aaj Sunday ho, ye pichle working day (Friday) ka data utha lega
-            tickers = {"BHEL": "BHEL.NS", "NETWEB": "NETWEB.NS", "KAYNES": "KAYNES.NS"} # stockname.NS is the name of stock in yfinance module from we get the price of stock
+            tickers = {
+                "BHEL": "BHEL.NS",
+                "NETWEB": "NETWEB.NS",
+                "KAYNES": "KAYNES.NS"
+            }
+            # Stock names aur unke Yahoo Finance symbols
+
             current_prices = {}
+            # Latest prices store karne ke liye dictionary
 
-            # Har stock ke liye loop chalana
             for name, symbol in tickers.items():
-                data = yf.Ticker(symbol).history(period="5d") # 5 din ki history mangwana
-                if not data.empty:
-                    # Sabse aakhri row (latest price) uthana
-                    current_prices[name] = data['Close'].iloc[-1]
-                else:
-                    current_prices[name] = None # Agar data nahi mila
+                data = yf.Ticker(symbol).history(period="5d")
+                # Last 5 trading days ka data fetch kar raha hai
 
-            # Variables mein prices store karna
+                if not data.empty:
+                    current_prices[name] = data["Close"].iloc[-1]
+                    # Latest closing price store kar raha hai
+                else:
+                    current_prices[name] = None
+                    logging.warning(f"{name} ka data empty mila")
+                    # Agar Yahoo se data na mile toh warning
+
             b_now = current_prices["BHEL"]
             n_now = current_prices["NETWEB"]
             k_now = current_prices["KAYNES"]
+            # Prices ko variables mein assign kar rahe hain
 
-            # Agar teeno stocks ka price mil gaya hai
             if b_now and n_now and k_now:
-                # Terminal par status dikhana: OPEN hai ya CLOSED
-                status = "OPEN" if get_market_status() else "CLOSED/WEEKEND"
-                print(f"[{time.ctime()}] Market: {status}") # time.ctime() real date-time dikhayega
-                print(f"Latest Price -> BHEL: {b_now:.2f} | Netweb: {n_now:.2f} | Kaynes: {k_now:.2f}")
+                status = "OPEN" if get_market_status() else "CLOSED / WEEKEND"
+                # Market status decide kar raha hai
 
-                # --- Alert Logic ---
-                # Email alert sirf tabhi jayega jab Market sach mein OPEN ho (Monday-Friday)
+                logging.info(f"Market Status: {status}")
+
+                logging.info(
+                    f"Latest Prices | BHEL: {b_now:.2f} | "
+                    f"Netweb: {n_now:.2f} | Kaynes: {k_now:.2f}"
+                )
+                # Latest prices log kar raha hai
+
                 if get_market_status():
-                    # Check: Kya koi bhi ek stock target hit kar gaya?
-                    if (b_now <= bhel_target or n_now <= netweb_target or k_now <= kaynes_target):
-                        print("🚨 TARGET HIT! Email trigger kar raha hoon...")
+                    # Market open hone par hi email alert allow
+
+                    if (b_now <= bhel_target or
+                        n_now <= netweb_target or
+                        k_now <= kaynes_target):
+
+                        logging.warning("🚨 TARGET HIT! Email trigger ho raha hai")
                         logicForEmailSend(n_now, b_now, k_now)
-                        # Alert ke baad 1 ghante (3600s) sula dena taaki spam na ho
-                        time.sleep(3600) 
+
+                        time.sleep(3600)
+                        # Alert ke baad 1 ghanta sleep (spam avoid)
+
                     else:
-                        # Agar target hit nahi hua, toh 15 min (900s) baad dobara check karna
-                        print("Prices are high. Waiting 15 mins...")
+                        logging.info("Prices abhi target ke upar hain, 15 min wait")
                         time.sleep(900)
+
                 else:
-                    # Agar market band hai (Weekend/Night), toh sirf price dikhao aur 1 ghanta wait karo
-                    print("Market band hai, alerts paused. Next check in 1 hour.")
+                    logging.info("Market band hai, alerts paused. Next check in 1 hour")
                     time.sleep(3600)
 
-        except Exception as e:
-            # Agar internet ud jaye ya Yahoo down ho, toh script crash na ho, 1 min baad retry kare
-            print(f"❌ Error: {e}")
-            time.sleep(60)
+        except KeyboardInterrupt:
+            # Jab user Ctrl + C dabata hai, yahan execution aata hai
 
-# --- Script Entry Point ---
+            logging.info("🛑 Script manually closed by user (Ctrl + C)")
+            # Clean shutdown ka log
+
+            break
+            # Infinite loop se bahar nikal ke script ko safely band karta hai
+
+        except Exception as e:
+            # Koi bhi unexpected error aaye toh script crash na ho
+
+            logging.error(f"Unexpected error aayi: {e}")
+            time.sleep(60)
+            # 1 minute wait karke dobara try kare
+
+# ================= SCRIPT ENTRY POINT =================
+
 if __name__ == "__main__":
-    # Iske bina code run hona shuru nahi hoga
+    # Ye ensure karta hai ki script sirf direct run hone par start ho
     monitor_market()
